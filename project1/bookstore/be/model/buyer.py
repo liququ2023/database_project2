@@ -1,24 +1,25 @@
+import threading
 import psycopg2
 import uuid
 import json
 import logging
 from be.model import db_conn
 from be.model import error
+from datetime import datetime
 
 
 class Buyer(db_conn.DBConn):
     def __init__(self):
         db_conn.DBConn.__init__(self)
 
-    def new_order(
-        self, user_id: str, store_id: str, id_and_count: [(str, int)]
-    ) -> (int, str, str):
+    def new_order(self, user_id: str, store_id: str, id_and_count: [(str, int)]) -> (int, str, str):
         order_id = ""
         try:
             if not self.user_id_exist(user_id):
                 return error.error_non_exist_user_id(user_id) + (order_id,)
             if not self.store_id_exist(store_id):
                 return error.error_non_exist_store_id(store_id) + (order_id,)
+
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
 
             for book_id, count in id_and_count:
@@ -54,13 +55,27 @@ class Buyer(db_conn.DBConn):
                     (uid, book_id, count, price)
                 )
 
+            # 创建订单时，不再在 new_order 中设置状态，而是在历史订单表中设置
             cursor.execute(
                 "INSERT INTO new_order(order_id, store_id, user_id) "
                 "VALUES (%s, %s, %s);",
                 (uid, store_id, user_id)
             )
+
+            # 创建历史订单时，状态设置为 'pending'
+            cursor.execute(
+                "INSERT INTO history_order(order_id, store_id, user_id, order_status) "
+                "VALUES (%s, %s, %s, %s);",
+                (uid, store_id, user_id, 'pending')
+            )
+
             self.conn.commit()
             order_id = uid
+
+            # 设置一个定时器，在30秒后调用 cancel_order 方法取消订单
+            timer = threading.Timer(30.0, self.cancel_order, args=[user_id, order_id])
+            timer.start()  # 延迟队列
+
         except psycopg2.Error as e:
             logging.error("528, {}".format(str(e)))
             return 528, "{}".format(str(e)), ""
@@ -74,19 +89,23 @@ class Buyer(db_conn.DBConn):
         try:
             cursor = self.conn.cursor()
             cursor.execute(
-                "SELECT order_id, user_id, store_id FROM new_order WHERE order_id = %s",
+                "SELECT order_id, user_id, store_id, order_status FROM history_order WHERE order_id = %s",
                 (order_id,)
             )
             row = cursor.fetchone()
             if row is None:
                 return error.error_invalid_order_id(order_id)
 
-            order_id = row[0]
+            order_id_db = row[0]
             buyer_id = row[1]
             store_id = row[2]
+            order_status = row[3]
 
             if buyer_id != user_id:
                 return error.error_authorization_fail()
+
+            if order_status != 'pending':  # 只允许支付处于 'pending' 状态的订单
+                return error.error_invalid_order_status(order_id)
 
             cursor.execute(
                 "SELECT balance, password FROM \"user\" WHERE user_id = %s;",
@@ -120,7 +139,7 @@ class Buyer(db_conn.DBConn):
             for row in cursor:
                 count = row[1]
                 price = row[2]
-                total_price = total_price + price * count
+                total_price += price * count
 
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
@@ -140,19 +159,11 @@ class Buyer(db_conn.DBConn):
             if cursor.rowcount == 0:
                 return error.error_non_exist_user_id(seller_id)
 
+            # 支付成功后，更新历史订单表中的订单状态为 'paid'
             cursor.execute(
-                "DELETE FROM new_order WHERE order_id = %s",
-                (order_id,)
+                "UPDATE history_order SET order_status = %s WHERE order_id = %s",
+                ('paid', order_id)
             )
-            if cursor.rowcount == 0:
-                return error.error_invalid_order_id(order_id)
-
-            cursor.execute(
-                "DELETE FROM new_order_detail WHERE order_id = %s",
-                (order_id,)
-            )
-            if cursor.rowcount == 0:
-                return error.error_invalid_order_id(order_id)
 
             self.conn.commit()
 
@@ -217,6 +228,7 @@ class Buyer(db_conn.DBConn):
             orders = cursor.fetchall()
 
             if not orders:
+                logging.info(f"No orders found for user_id: {user_id}")
                 return error.error_non_exist_user_id(user_id) + ([],)
 
             order_list = []
@@ -224,7 +236,7 @@ class Buyer(db_conn.DBConn):
                 order_id = order[0]
                 order_status = order[1]
 
-                # 获取历史订单详情
+                # 获取该订单的详情
                 cursor.execute(
                     "SELECT book_id, count, price FROM history_order_detail WHERE order_id = %s;",
                     (order_id,)
@@ -243,7 +255,7 @@ class Buyer(db_conn.DBConn):
                     }
                     order_detail_list.append(order_detail)
 
-                # 拼装订单信息
+                # 构建订单信息
                 order_info = {
                     "order_id": order_id,
                     "order_status": order_status,
@@ -254,100 +266,106 @@ class Buyer(db_conn.DBConn):
             return 200, "ok", order_list
 
         except psycopg2.Error as e:
-            logging.error(f"Database error while getting history orders: {str(e)}")
-            return 528, "{}".format(str(e)), []
-        except BaseException as e:
-            logging.error(f"Unexpected error while getting history orders: {str(e)}")
-            return 530, "{}".format(str(e)), []
+            # 记录数据库错误
+            logging.error(f"Database error while getting history orders for user_id {user_id}: {str(e)}")
+            return 528, f"Database error: {str(e)}", []
+
+        except Exception as e:
+            # 捕获所有其他异常
+            logging.error(f"Unexpected error while getting history orders for user_id {user_id}: {str(e)}")
+            return 530, f"Unexpected error: {str(e)}", []
+
+        finally:
+            # 确保游标关闭
+            if cursor:
+                cursor.close()
 
     def cancel_order(self, user_id: str, order_id: str) -> (int, str):
         try:
+            # 开始取消订单的逻辑
             cursor = self.conn.cursor()
-
-            # 检查订单是否存在
             cursor.execute(
-                "SELECT order_id, user_id FROM new_order WHERE order_id = %s;",
+                "SELECT order_id, user_id, order_status FROM history_order WHERE order_id = %s;",
                 (order_id,)
             )
-            order = cursor.fetchone()
-            if not order:
+            row = cursor.fetchone()
+            if row is None:
                 return error.error_invalid_order_id(order_id)
 
-            buyer_id = order[1]
-            if buyer_id != user_id:
+            order_id_db = row[0]
+            order_user_id = row[1]
+            order_status = row[2]
+            if order_user_id != user_id:
                 return error.error_authorization_fail()
+
+            if order_status in ['paid', 'cancelled']:  # 只有 'pending' 状态的订单可以取消
+                return error.error_invalid_order_status(order_id)
+
+            cursor.execute(
+                "UPDATE history_order SET order_status = %s WHERE order_id = %s;",
+                ('cancelled', order_id)
+            )
 
             # 删除订单
             cursor.execute(
                 "DELETE FROM new_order WHERE order_id = %s;",
                 (order_id,)
             )
-            if cursor.rowcount == 0:
-                return error.error_invalid_order_id(order_id)
-
-            # 删除订单详情
             cursor.execute(
                 "DELETE FROM new_order_detail WHERE order_id = %s;",
                 (order_id,)
             )
-            if cursor.rowcount == 0:
-                return error.error_invalid_order_id(order_id)
-
-            # 更新历史订单状态为 cancelled
-            cursor.execute(
-                "UPDATE history_order SET order_status = 'cancelled' WHERE order_id = %s;",
-                (order_id,)
-            )
-            if cursor.rowcount == 0:
-                return error.error_invalid_order_id(order_id)
-
             self.conn.commit()
 
         except psycopg2.Error as e:
-            logging.error(f"Database error while cancelling order {order_id}: {str(e)}")
-            return 528, "{}".format(str(e))
+            logging.error(f"Error cancelling order: {str(e)}")
+            return 528, f"Error: {str(e)}"
+
         except BaseException as e:
-            logging.error(f"Unexpected error while cancelling order {order_id}: {str(e)}")
-            return 530, "{}".format(str(e))
+            logging.error(f"Unexpected error cancelling order: {str(e)}")
+            return 530, f"Unexpected error: {str(e)}"
 
         return 200, "ok"
 
     def receive_order(self, user_id: str, order_id: str) -> (int, str):
+        cursor = None
         try:
             cursor = self.conn.cursor()
 
-            # 检查订单是否存在
-            cursor.execute(
-                "SELECT order_id, user_id, order_status FROM history_order WHERE order_id = %s;",
-                (order_id,)
-            )
+            # 1. 查询订单信息
+            cursor.execute("SELECT order_id, user_id, order_status FROM history_order WHERE order_id = %s", (order_id,))
             order = cursor.fetchone()
+
             if not order:
-                return error.error_invalid_order_id(order_id)
+                return self.error_invalid_order_id(order_id)
 
-            buyer_id = order[1]
+            # 2. 检查用户身份是否匹配
+            order_id_db, buyer_id, status = order
             if buyer_id != user_id:
-                return error.error_authorization_fail()
+                return self.error_authorization_fail()
 
-            status = order[2]
+            # 3. 检查订单状态
             if status != "sent":
-                return error.error_not_sent(order_id)
+                return self.error_order_not_sent(order_id)
 
-            # 更新订单状态为 received
+            # 4. 更新订单状态为 'received'
             cursor.execute(
-                "UPDATE history_order SET order_status = 'received' WHERE order_id = %s;",
-                (order_id,)
+                "UPDATE history_order SET order_status = %s WHERE order_id = %s AND user_id = %s",
+                ("received", order_id, user_id)
             )
+
             if cursor.rowcount == 0:
-                return error.error_invalid_order_id(order_id)
+                return self.error_order_already_received(order_id)
 
             self.conn.commit()
 
         except psycopg2.Error as e:
-            logging.error(f"Database error while receiving order {order_id}: {str(e)}")
-            return 528, "{}".format(str(e))
-        except BaseException as e:
-            logging.error(f"Unexpected error while receiving order {order_id}: {str(e)}")
-            return 530, "{}".format(str(e))
+            return 528, f"Database error: {str(e)}"
+        except Exception as e:
+            return 530, f"Unexpected error: {str(e)}"
+        finally:
+            if cursor:
+                cursor.close()
 
-        return 200, "ok"
+        return 200, "Order received successfully"
+

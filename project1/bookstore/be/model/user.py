@@ -188,7 +188,7 @@ class User(db_conn.DBConn):
         return 200, "ok"
 
     def change_password(
-        self, user_id: str, old_password: str, new_password: str
+            self, user_id: str, old_password: str, new_password: str
     ) -> bool:
         try:
             code, message = self.check_password(user_id, old_password)
@@ -216,3 +216,61 @@ class User(db_conn.DBConn):
             logging.error(f"Unexpected error during change_password: {str(e)}")
             return 530, "{}".format(str(e))
         return 200, "ok"
+
+    # 新增的 search_book 方法
+    def search_book(self, title='', content='', tag='', store_id=''):
+        try:
+            query_parts = []  # 用于存储查询条件
+            params = []  # 用于存储查询参数
+
+            # 根据输入条件构建查询
+            if title:
+                query_parts.append("b.title LIKE %s")
+                params.append(f"%{title}%")
+            if content:
+                query_parts.append("b.content LIKE %s")
+                params.append(f"%{content}%")
+            if tag:
+                query_parts.append("b.tags LIKE %s")
+                params.append(f"%{tag}%")
+
+            # 根据 store_id 查询指定商店的所有书籍 ID
+            if store_id:
+                store_query = """
+                    SELECT book_id FROM store WHERE store_id = %s;
+                """
+                cursor = self.db.cursor()
+                cursor.execute(store_query, (store_id,))
+                store_result = cursor.fetchall()
+
+                if not store_result:
+                    return 528, f"Store with ID {store_id} does not exist."
+
+                book_ids = [item[0] for item in store_result]  # 提取所有 book_id
+
+                if book_ids:  # 如果 book_ids 有数据
+                    query_parts.append("b.id IN (%s)" % ",".join(["%s"] * len(book_ids)))  # 用占位符代替实际值
+                    params.extend(book_ids)
+
+            # 拼接最终的查询条件
+            where_clause = " AND ".join(query_parts) if query_parts else "1=1"
+
+            # 执行查询
+            sql = f"""
+                SELECT b.id, b.title, b.content, b.tags 
+                FROM books b
+                WHERE {where_clause};
+            """
+            cursor.execute(sql, tuple(params))  # 使用 tuple 将所有参数传递给 execute
+            results = cursor.fetchall()
+            cursor.close()
+
+        except psycopg2.Error as e:
+            return 528, str(e)
+        except Exception as e:
+            return 530, f"Unexpected error: {str(e)}"
+
+        if not results:
+            return 529, "No matching books found."
+        else:
+            return 200, "ok", results
