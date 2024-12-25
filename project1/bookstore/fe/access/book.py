@@ -1,8 +1,7 @@
-import os
-import sqlite3 as sqlite
+import psycopg2
 import random
 import base64
-import simplejson as json
+import json
 
 
 class Book:
@@ -31,34 +30,51 @@ class Book:
 
 class BookDB:
     def __init__(self, large: bool = False):
-        parent_path = os.path.dirname(os.path.dirname(__file__))
-        self.db_s = os.path.join(parent_path, "data/book.db")
-        self.db_l = os.path.join(parent_path, "data/book_lx.db")
-        if large:
-            self.book_db = self.db_l
-        else:
-            self.book_db = self.db_s
+        """
+        初始化数据库连接和参数设置。
+        :param large: 是否获取更多的书籍图片，默认为 False。
+        """
+        self.large = large  # 将 large 参数存储为实例变量
+        self.conn = psycopg2.connect(
+            dbname="bookstore",  # 替换为你的数据库名
+            user="postgres",     # 替换为你的用户名
+            password="Liwanting2003",  # 替换为你的密码
+            host="localhost",    # 主机地址
+            port="5432",         # 端口号
+            options="-c client_encoding=UTF8"  # 强制设置客户端编码为 UTF8
+        )
+        self.cursor = self.conn.cursor()
 
     def get_book_count(self):
-        conn = sqlite.connect(self.book_db)
-        cursor = conn.execute("SELECT count(id) FROM book")
-        row = cursor.fetchone()
+        """
+        获取书籍总数
+        :return: 书籍总数
+        """
+        self.cursor.execute("SELECT count(id) FROM books")
+        row = self.cursor.fetchone()
         return row[0]
 
     def get_book_info(self, start, size) -> [Book]:
+        """
+        获取书籍信息，包括书名、作者、出版商等信息。
+        :param start: 开始的偏移量
+        :param size: 每次获取的书籍数量
+        :return: 包含书籍信息的 Book 对象列表
+        """
         books = []
-        conn = sqlite.connect(self.book_db)
-        cursor = conn.execute(
-            "SELECT id, title, author, "
-            "publisher, original_title, "
-            "translator, pub_year, pages, "
-            "price, currency_unit, binding, "
-            "isbn, author_intro, book_intro, "
-            "content, tags, picture FROM book ORDER BY id "
-            "LIMIT ? OFFSET ?",
-            (size, start),
+        self.cursor.execute(
+            """
+            SELECT id, title, author, publisher, original_title, translator, pub_year, 
+                   pages, price, currency_unit, binding, isbn, author_intro, book_intro, 
+                   content, tags, picture 
+            FROM books 
+            ORDER BY id
+            LIMIT %s OFFSET %s
+            """,
+            (size, start)
         )
-        for row in cursor:
+
+        for row in self.cursor.fetchall():
             book = Book()
             book.id = row[0]
             book.title = row[1]
@@ -69,7 +85,6 @@ class BookDB:
             book.pub_year = row[6]
             book.pages = row[7]
             book.price = row[8]
-
             book.currency_unit = row[9]
             book.binding = row[10]
             book.isbn = row[11]
@@ -77,21 +92,26 @@ class BookDB:
             book.book_intro = row[13]
             book.content = row[14]
             tags = row[15]
-
             picture = row[16]
 
+            # 处理标签
             for tag in tags.split("\n"):
                 if tag.strip() != "":
                     book.tags.append(tag)
-            for i in range(0, random.randint(0, 9)):
+
+            # 根据 large 参数决定是否添加更多图片
+            if self.large:
+                # 如果 large 为 True，随机添加更多图片
+                for i in range(0, random.randint(3, 9)):  # 假设更多图片是随机 3 到 9 张
+                    if picture is not None:
+                        encode_str = base64.b64encode(picture).decode("utf-8")
+                        book.pictures.append(encode_str)
+            else:
+                # 如果 large 为 False，只添加较少的图片，或者不添加
                 if picture is not None:
                     encode_str = base64.b64encode(picture).decode("utf-8")
                     book.pictures.append(encode_str)
-            books.append(book)
-            # print(tags.decode('utf-8'))
 
-            # print(book.tags, len(book.picture))
-            # print(book)
-            # print(tags)
+            books.append(book)
 
         return books

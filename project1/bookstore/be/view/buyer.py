@@ -1,3 +1,13 @@
+"""
+实现买家后端接口
+提供了 HTTP 路由，接收客户端请求并调用 buyer 类的方法。
+定义了一个 Flask 蓝图
+用于买家相关的功能，具体功能包括发起新订单，支付订单，增加余额
+与原来的bookstore相比，用户部分增加查询历史订单，取消订单，确认收货
+接口代码不用变，给新功能增加接口即可
+"""
+
+
 from flask import Blueprint
 from flask import request
 from flask import jsonify
@@ -39,4 +49,33 @@ def add_funds():
     add_value = request.json.get("add_value")
     b = Buyer()
     code, message = b.add_funds(user_id, password, add_value)
+    return jsonify({"message": message}), code
+
+
+# 新增确认收货功能
+@bp_buyer.route("/receive_order", methods=["POST"])
+def receive_order():
+    user_id = request.json.get("user_id")
+    order_id = request.json.get("order_id")
+    b = Buyer()
+    code, message = b.receive_order(user_id, order_id)
+    return jsonify({"message": message}), code
+
+
+# 新增获取历史订单功能
+@bp_buyer.route("/get_history_order", methods=["POST"])
+def get_history_order():
+    user_id = request.json.get("user_id")
+    b = Buyer()
+    code, message, _ = b.get_history_order(user_id)
+    return jsonify({"message": message}), code
+
+
+# 新增的取消订单功能
+@bp_buyer.route("/cancel_order", methods=["POST"])
+def cancel_order():
+    user_id = request.json.get("user_id")
+    order_id = request.json.get("order_id")
+    b = Buyer()
+    code, message = b.cancel_order(user_id, order_id)
     return jsonify({"message": message}), code

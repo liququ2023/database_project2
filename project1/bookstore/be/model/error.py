@@ -1,3 +1,9 @@
+"""
+定义了一些错误码和相应的错误处理函数，用于在系统中返回特定的错误信息
+为新的功能增加新的错误码
+"""
+
+# 错误码字典：映射了不同的错误码到对应的错误消息
 error_code = {
     401: "authorization fail.",
     511: "non exist user id {}",
@@ -9,8 +15,9 @@ error_code = {
     517: "stock level low, book id {}",
     518: "invalid order id {}",
     519: "not sufficient funds, order id {}",
-    520: "",
-    521: "",
+    # 为新增功能增加错误码
+    520: "not sent, order id {}",
+    521: "not paid, order id {}",
     522: "",
     523: "",
     524: "",
@@ -19,6 +26,11 @@ error_code = {
     527: "",
     528: "",
 }
+
+"""
+错误处理函数
+从字典中获取错误码对应的错误消息字符串，并且将后面的参数插入，最终返回错误信息
+"""
 
 
 def error_non_exist_user_id(user_id):
@@ -57,9 +69,18 @@ def error_not_sufficient_funds(order_id):
     return 519, error_code[518].format(order_id)
 
 
+def error_not_sent(order_id):
+    return 520, error_code[520].format(order_id)
+
+
+def error_not_paid(order_id):
+    return 521, error_code[521].format(order_id)
+
+
 def error_authorization_fail():
     return 401, error_code[401]
 
 
+# 通用错误处理
 def error_and_message(code, message):
     return code, message
