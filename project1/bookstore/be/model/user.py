@@ -54,9 +54,11 @@ class User(db_conn.DBConn):
         return False
 
     def register(self, user_id: str, password: str):
+        cursor = None
         try:
-            # Check if user already exists
             cursor = self.conn.cursor()
+
+            # Check if user already exists
             cursor.execute("SELECT 1 FROM \"user\" WHERE user_id = %s;", (user_id,))
             if cursor.fetchone():
                 logging.error(f"User ID {user_id} already exists.")
@@ -73,45 +75,74 @@ class User(db_conn.DBConn):
                 (user_id, password, 0, token, terminal),
             )
             self.conn.commit()
-            cursor.close()
         except psycopg2.Error as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on error
             logging.error(f"Database error during register: {e.pgcode} - {e.pgerror}")
             return error.error_exist_user_id(user_id)  # Assuming this is the user already exists error
         except Exception as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on unexpected error
             logging.error(f"Unexpected error during register: {str(e)}")
             return 500, f"Unexpected error: {str(e)}"
+        finally:
+            if cursor:
+                cursor.close()
+
         return 200, "ok"
 
     def check_token(self, user_id: str, token: str) -> (int, str):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT token FROM \"user\" WHERE user_id=%s;", (user_id,))
-        row = cursor.fetchone()
-        if row is None:
-            cursor.close()
-            return error.error_authorization_fail()
-        db_token = row[0]
-        cursor.close()
+        cursor = None
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT token FROM \"user\" WHERE user_id=%s;", (user_id,))
+            row = cursor.fetchone()
+            if row is None:
+                cursor.close()
+                return error.error_authorization_fail()
+            db_token = row[0]
+        except psycopg2.Error as e:
+            if cursor:
+                cursor.close()
+            logging.error(f"Database error during check_token: {str(e)}")
+            return 528, f"Database error: {str(e)}"
+        finally:
+            if cursor:
+                cursor.close()
+
         if not self.__check_token(user_id, db_token, token):
             return error.error_authorization_fail()
+
         return 200, "ok"
 
     def check_password(self, user_id: str, password: str) -> (int, str):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT password FROM \"user\" WHERE user_id=%s;", (user_id,))
-        row = cursor.fetchone()
-        if row is None:
-            cursor.close()
-            return error.error_authorization_fail()
+        cursor = None
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT password FROM \"user\" WHERE user_id=%s;", (user_id,))
+            row = cursor.fetchone()
+            if row is None:
+                cursor.close()
+                return error.error_authorization_fail()
 
-        if password != row[0]:
-            cursor.close()
-            return error.error_authorization_fail()
+            if password != row[0]:
+                cursor.close()
+                return error.error_authorization_fail()
 
-        cursor.close()
+        except psycopg2.Error as e:
+            if cursor:
+                cursor.close()
+            logging.error(f"Database error during check_password: {str(e)}")
+            return 528, f"Database error: {str(e)}"
+        finally:
+            if cursor:
+                cursor.close()
+
         return 200, "ok"
 
     def login(self, user_id: str, password: str, terminal: str) -> (int, str, str):
         token = ""
+        cursor = None
         try:
             code, message = self.check_password(user_id, password)
             if code != 200:
@@ -128,16 +159,24 @@ class User(db_conn.DBConn):
                 cursor.close()
                 return error.error_authorization_fail() + ("",)
             self.conn.commit()
-            cursor.close()
         except psycopg2.Error as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on error
             logging.error(f"Database error during login: {str(e)}")
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on unexpected error
             logging.error(f"Unexpected error during login: {str(e)}")
             return 530, "{}".format(str(e)), ""
+        finally:
+            if cursor:
+                cursor.close()
+
         return 200, "ok", token
 
     def logout(self, user_id: str, token: str) -> bool:
+        cursor = None
         try:
             code, message = self.check_token(user_id, token)
             if code != 200:
@@ -156,16 +195,24 @@ class User(db_conn.DBConn):
                 return error.error_authorization_fail()
 
             self.conn.commit()
-            cursor.close()
         except psycopg2.Error as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on error
             logging.error(f"Database error during logout: {str(e)}")
             return 528, "{}".format(str(e))
         except BaseException as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on unexpected error
             logging.error(f"Unexpected error during logout: {str(e)}")
             return 530, "{}".format(str(e))
+        finally:
+            if cursor:
+                cursor.close()
+
         return 200, "ok"
 
     def unregister(self, user_id: str, password: str) -> (int, str):
+        cursor = None
         try:
             code, message = self.check_password(user_id, password)
             if code != 200:
@@ -178,18 +225,24 @@ class User(db_conn.DBConn):
             else:
                 cursor.close()
                 return error.error_authorization_fail()
-            cursor.close()
         except psycopg2.Error as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on error
             logging.error(f"Database error during unregister: {str(e)}")
             return 528, "{}".format(str(e))
         except BaseException as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on unexpected error
             logging.error(f"Unexpected error during unregister: {str(e)}")
             return 530, "{}".format(str(e))
+        finally:
+            if cursor:
+                cursor.close()
+
         return 200, "ok"
 
-    def change_password(
-            self, user_id: str, old_password: str, new_password: str
-    ) -> bool:
+    def change_password(self, user_id: str, old_password: str, new_password: str) -> bool:
+        cursor = None
         try:
             code, message = self.check_password(user_id, old_password)
             if code != 200:
@@ -208,13 +261,20 @@ class User(db_conn.DBConn):
                 return error.error_authorization_fail()
 
             self.conn.commit()
-            cursor.close()
         except psycopg2.Error as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on error
             logging.error(f"Database error during change_password: {str(e)}")
             return 528, "{}".format(str(e))
         except BaseException as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on unexpected error
             logging.error(f"Unexpected error during change_password: {str(e)}")
             return 530, "{}".format(str(e))
+        finally:
+            if cursor:
+                cursor.close()
+
         return 200, "ok"
 
     def search_book(self, title='', content='', tag='', store_id=''):
@@ -279,7 +339,7 @@ class User(db_conn.DBConn):
             # 如果指定了 store_id，检查每本书是否属于该商店
             for book in results:
                 book_id = book[0]  # 获取书籍的 ID
-                cursor.execute("""
+                cursor.execute(""" 
                     SELECT 1 FROM store WHERE book_id = %s AND store_id = %s
                 """, (book_id, store_id))
                 store_check = cursor.fetchone()
@@ -290,23 +350,17 @@ class User(db_conn.DBConn):
             return 200, "ok", results
 
         except psycopg2.Error as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on error
             logging.error(f"Database error occurred: {e.pgcode}, {e.pgerror}")  # 输出具体错误
             return 528, f"Database error occurred: {e.pgcode}, {e.pgerror}", []
 
         except Exception as e:
+            if cursor:
+                self.conn.rollback()  # Rollback the transaction on unexpected error
             logging.error(f"Unexpected error occurred: {str(e)}")  # 输出具体错误
             return 530, f"Unexpected error occurred: {str(e)}", []
 
         finally:
             if cursor:
                 cursor.close()  # 确保游标总是被关闭
-
-
-
-
-
-
-
-
-
-

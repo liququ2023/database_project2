@@ -12,6 +12,8 @@ class Store:
 
     def init_tables(self):
         """ 初始化数据库表 """
+        conn = None
+        cursor = None
         try:
             logging.info("Initializing database tables...")
             conn = self.get_db_conn()
@@ -19,7 +21,7 @@ class Store:
             cursor.execute("SET client_encoding TO 'UTF8';")
 
             # 创建用户表
-            cursor.execute("""
+            cursor.execute(""" 
             CREATE TABLE IF NOT EXISTS "user" (
                 user_id TEXT PRIMARY KEY, 
                 password TEXT NOT NULL, 
@@ -90,14 +92,17 @@ class Store:
             );
             """)
 
-            conn.commit()
+            conn.commit()  # 提交事务
             logging.info("Database tables initialized successfully.")
         except psycopg2.Error as e:
+            if conn:
+                conn.rollback()  # 回滚事务
             logging.error(f"Database error during table initialization: {e}")
-            conn.rollback()
         finally:
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
     def get_db_conn(self) -> psycopg2.extensions.connection:
         """ 从 PostgreSQL 获取数据库连接 """
@@ -137,3 +142,64 @@ def get_db_conn():
 
     return conn
 
+# 示例: 增加事务处理的操作
+def add_book_to_store(store_id: str, book_id: str, book_info: str, stock_level: int):
+    """ 将书籍添加到商店库存中 """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_conn()  # 获取数据库连接
+        cursor = conn.cursor()
+
+        # 插入新的书籍信息到商店库存表
+        cursor.execute("""
+        INSERT INTO "store" (store_id, book_id, book_info, stock_level)
+        VALUES (%s, %s, %s, %s);
+        """, (store_id, book_id, book_info, stock_level))
+
+        conn.commit()  # 提交事务
+        logging.info(f"Book {book_id} added to store {store_id} successfully.")
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()  # 回滚事务
+        logging.error(f"Database error during adding book to store: {e}")
+    except Exception as e:
+        if conn:
+            conn.rollback()  # 回滚事务
+        logging.error(f"Unexpected error during adding book to store: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def update_stock_level(store_id: str, book_id: str, new_stock_level: int):
+    """ 更新商店库存中的书籍数量 """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_conn()  # 获取数据库连接
+        cursor = conn.cursor()
+
+        # 更新书籍库存
+        cursor.execute("""
+        UPDATE "store"
+        SET stock_level = %s
+        WHERE store_id = %s AND book_id = %s;
+        """, (new_stock_level, store_id, book_id))
+
+        conn.commit()  # 提交事务
+        logging.info(f"Stock level for book {book_id} in store {store_id} updated to {new_stock_level}.")
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()  # 回滚事务
+        logging.error(f"Database error during updating stock level: {e}")
+    except Exception as e:
+        if conn:
+            conn.rollback()  # 回滚事务
+        logging.error(f"Unexpected error during updating stock level: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

@@ -8,30 +8,54 @@ class DBConn:
 
     # 检查用户ID是否存在
     def user_id_exist(self, user_id):
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT 1 FROM \"user\" WHERE user_id = %s LIMIT 1",  # 查询用户ID是否存在
-                (user_id,)
-            )
-            result = cursor.fetchone()
-            return result is not None  # 如果查询到结果则返回True，否则返回False
+        cursor = None
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM \"user\" WHERE user_id = %s LIMIT 1",  # 查询用户ID是否存在
+                    (user_id,)
+                )
+                result = cursor.fetchone()
+                return result is not None  # 如果查询到结果则返回True，否则返回False
+        except psycopg2.Error as e:
+            self.conn.rollback()  # 回滚事务
+            return False
+        except Exception as e:
+            self.conn.rollback()  # 回滚事务
+            return False
 
     # 检查书ID是否存在
     def book_id_exist(self, store_id, book_id):
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT 1 FROM store WHERE store_id = %s AND book_id = %s LIMIT 1",  # 查询书籍ID是否存在
-                (store_id, book_id)
-            )
-            result = cursor.fetchone()
-            return result is not None  # 如果查询到结果则返回True，否则返回False
+        cursor = None
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM store WHERE store_id = %s AND book_id = %s LIMIT 1",  # 查询书籍ID是否存在
+                    (store_id, book_id)
+                )
+                result = cursor.fetchone()
+                return result is not None  # 如果查询到结果则返回True，否则返回False
+        except psycopg2.Error as e:
+            self.conn.rollback()  # 回滚事务
+            return False
+        except Exception as e:
+            self.conn.rollback()  # 回滚事务
+            return False
 
     # 检查店铺ID是否存在
     def store_id_exist(self, store_id):
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT 1 FROM user_store WHERE store_id = %s LIMIT 1",  # 查询店铺ID是否存在
-                (store_id,)
-            )
-            result = cursor.fetchone()
-            return result is not None  # 如果查询到结果则返回True，否则返回False
+        cursor = None
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM user_store WHERE store_id = %s LIMIT 1",  # 查询店铺ID是否存在
+                    (store_id,)
+                )
+                result = cursor.fetchone()
+                return result is not None  # 如果查询到结果则返回True，否则返回False
+        except psycopg2.Error as e:
+            self.conn.rollback()  # 回滚事务
+            return False
+        except Exception as e:
+            self.conn.rollback()  # 回滚事务
+            return False

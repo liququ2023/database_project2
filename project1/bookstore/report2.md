@@ -3,11 +3,13 @@
 作者：李婉婷   10225501449
 ## 一，项目简介
 ### 项目成员
-#### 姓名：李婉婷  年纪：数据学院22级  学号：10225501449
+#### 姓名：李婉婷   年纪：22级   学号：10225501449
 ### 项目内容介绍
 此项目为课程当代数据管理系统的第二次大作业bookstore。
 
 该项目要求实现一个提供网上购书功能的网站后端。网站支持书上在上面开商店，购买者可以通过网站购买。买家和买家都可以注册自己的账号。一个卖家可以开一个或者多个网上商店。买家可以为自己的账户充值，在任意商店购买图书。
+
+核心数据库使用postgresql
 
 此项目支持 下单->付款->发货->收货 流程。
 
@@ -37,9 +39,10 @@ bookstore_postgresql
 ### 前60%功能的文档结构设计：
 #### ER图如下：
 ![ER](ER.PNG)
+
 由于此项目是要把原来基于mongodb的功能迁移到postgresql上面，且项目要求测试文件保持不变，因此，我们并不改变原来的数据存储结构，我们迁移后的每个postgresql的table中存放一个mongodb文档集合的内容，这是因为本来我们的mongodb就是基于sqlite迁移过来的，本来就是适合存放在关系模型中，同时这样的设计也更加便于我们编写业务逻辑代码。
 同时我此处将BLOB数据转变为二进制数据，依旧存放在我们的postgresql数据库中
-因此前60%功能的文档schema如下：
+因此前60%功能的关系schema如下：
 #### table1:books
 - id TEXT
 - title TEXT
@@ -1193,19 +1196,152 @@ test_repeat_receive：测试买家是否可以多次接收同一订单。
 
 测试结果如下：
 ```
-liwanting@LWT MINGW64 /c/school/pythonprojects/data_base/project1/bookstore_mongoDB (main)
+liwanting@LWT MINGW64 /c/school/pythonprojects/bookstore_sql/project1/bookstore (master)
 $ bash script/test.sh
 ============================= test session starts =============================
 platform win32 -- Python 3.11.5, pytest-8.3.3, pluggy-1.5.0 -- C:\school\python\python.exe
 cachedir: .pytest_cache
-rootdir: C:\school\pythonprojects\data_base\project1\bookstore_mongoDB
+rootdir: C:\school\pythonprojects\bookstore_sql\project1\bookstore
 collecting ... frontend begin test
  * Serving Flask app 'be.serve' (lazy loading)
  * Environment: production
    WARNING: This is a development server. Do not use it in a production deployment.
    Use a production WSGI server instead.
  * Debug mode: off
-2024-10-31 12:31:50,756 [Thread-1 (ru] [INFO ]   * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+2024-12-26 23:21:49,658 [Thread-1 (ru] [INFO ]   * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+collected 54 items
+
+fe/test/test_add_book.py::TestAddBook::test_ok PASSED                    [  1%]
+fe/test/test_add_book.py::TestAddBook::test_error_non_exist_store_id PASSED [  3%]
+fe/test/test_add_book.py::TestAddBook::test_error_exist_book_id PASSED   [  5%]
+fe/test/test_add_book.py::TestAddBook::test_error_non_exist_user_id PASSED [  7%]
+fe/test/test_add_funds.py::TestAddFunds::test_ok PASSED                  [  9%]
+fe/test/test_add_funds.py::TestAddFunds::test_error_user_id PASSED       [ 11%]
+fe/test/test_add_funds.py::TestAddFunds::test_error_password PASSED      [ 12%]
+fe/test/test_add_stock_level.py::TestAddStockLevel::test_error_user_id PASSED [ 14%]
+fe/test/test_add_stock_level.py::TestAddStockLevel::test_error_store_id PASSED [ 16%]
+fe/test/test_add_stock_level.py::TestAddStockLevel::test_error_book_id PASSED [ 18%]
+fe/test/test_add_stock_level.py::TestAddStockLevel::test_ok PASSED       [ 20%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_ok PASSED            [ 22%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_non_exist_order_id PASSED [ 24%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_repeat_cancel PASSED [ 25%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_cancel_paid_order PASSED [ 27%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_cancel_long_time_order PASSED [ 29%]
+fe/test/test_create_store.py::TestCreateStore::test_ok PASSED            [ 31%]
+fe/test/test_create_store.py::TestCreateStore::test_error_exist_store_id PASSED [ 33%]
+fe/test/test_get_history_order.py::TestGetOHistoryaoarder::test_ok PASSED [ 35%]
+fe/test/test_get_history_order.py::TestGetOHistoryaoarder::test_non_exist_user_id PASSED [ 37%]
+fe/test/test_login.py::TestLogin::test_ok PASSED                         [ 38%]
+fe/test/test_login.py::TestLogin::test_error_user_id PASSED              [ 40%]
+fe/test/test_login.py::TestLogin::test_error_password PASSED             [ 42%]
+fe/test/test_new_order.py::TestNewOrder::test_non_exist_book_id PASSED   [ 44%]
+fe/test/test_new_order.py::TestNewOrder::test_low_stock_level PASSED     [ 46%]
+fe/test/test_new_order.py::TestNewOrder::test_ok PASSED                  [ 48%]
+fe/test/test_new_order.py::TestNewOrder::test_non_exist_user_id PASSED   [ 50%]
+fe/test/test_new_order.py::TestNewOrder::test_non_exist_store_id PASSED  [ 51%]
+fe/test/test_password.py::TestPassword::test_ok PASSED                   [ 53%]
+fe/test/test_password.py::TestPassword::test_error_password PASSED       [ 55%]
+fe/test/test_password.py::TestPassword::test_error_user_id PASSED        [ 57%]
+fe/test/test_payment.py::TestPayment::test_ok PASSED                     [ 59%]
+fe/test/test_payment.py::TestPayment::test_authorization_error PASSED    [ 61%]
+fe/test/test_payment.py::TestPayment::test_not_suff_funds PASSED         [ 62%]
+fe/test/test_payment.py::TestPayment::test_repeat_pay PASSED             [ 64%]
+fe/test/test_register.py::TestRegister::test_register_ok PASSED          [ 66%]
+fe/test/test_register.py::TestRegister::test_unregister_ok PASSED        [ 68%]
+fe/test/test_register.py::TestRegister::test_unregister_error_authorization PASSED [ 70%]
+fe/test/test_register.py::TestRegister::test_register_error_exist_user_id PASSED [ 72%]
+fe/test/test_search_book.py::TestSearchBook::test_search_in_store PASSED [ 74%]
+fe/test/test_search_book.py::TestSearchBook::test_search_global PASSED   [ 75%]
+fe/test/test_search_book.py::TestSearchBook::test_search_global_not_exists PASSED [ 77%]
+fe/test/test_search_book.py::TestSearchBook::test_search_not_exist_store_id PASSED [ 79%]
+fe/test/test_search_book.py::TestSearchBook::test_search_not_in_store SKIPPED [ 81%]
+fe/test/test_send_order.py::TestSendReceive::test_send_ok PASSED         [ 83%]
+fe/test/test_send_order.py::TestSendReceive::test_receive_ok PASSED      [ 85%]
+fe/test/test_send_order.py::TestSendReceive::test_error_store_id PASSED  [ 87%]
+fe/test/test_send_order.py::TestSendReceive::test_error_order_id PASSED  [ 88%]
+fe/test/test_send_order.py::TestSendReceive::test_error_seller_id PASSED [ 90%]
+fe/test/test_send_order.py::TestSendReceive::test_error_buyer_id PASSED  [ 92%]
+fe/test/test_send_order.py::TestSendReceive::test_send_not_pay PASSED    [ 94%]
+fe/test/test_send_order.py::TestSendReceive::test_receive_not_send PASSED [ 96%]
+fe/test/test_send_order.py::TestSendReceive::test_repeat_send PASSED     [ 98%]
+fe/test/test_send_order.py::TestSendReceive::test_repeat_receive PASSED  [100%]C:\school\pythonprojects\bookstore_sql\project1\bookstore\be\serve.py:18: UserWarning: The 'environ['werkzeug.server.shutdown']' function is deprecated and will be removed in Werkzeug 2.1.
+  func()
+2024-12-26 23:23:25,628 [Thread-649 (] [INFO ]  127.0.0.1 - - [26/Dec/2024 23:23:25] "GET /shutdown HTTP/1.1" 200 -
+
+
+================== 53 passed, 1 skipped in 96.92s (0:01:36) ===================
+frontend end test
+No data to combine
+Name                                Stmts   Miss Branch BrPart  Cover
+---------------------------------------------------------------------
+be\__init__.py                          0      0      0      0   100%
+be\app.py                               3      3      2      0     0%
+be\model\buyer.py                     204     40     62     14    80%
+be\model\db_conn.py                    21      0      0      0   100%
+be\model\error.py                      28      2      0      0    93%
+be\model\seller.py                    108     27     38      6    76%
+be\model\store.py                      48      5      0      0    90%
+be\model\user.py                      205     52     52      9    76%
+be\serve.py                            36      1      2      1    95%
+be\view\__init__.py                     0      0      0      0   100%
+be\view\auth.py                        51      7      0      0    86%
+be\view\buyer.py                       54      0      2      0   100%
+be\view\seller.py                      39      0      0      0   100%
+fe\__init__.py                          0      0      0      0   100%
+fe\access\__init__.py                   0      0      0      0   100%
+fe\access\auth.py                      36      4      0      0    89%
+fe\access\book.py                      69      4     14      2    88%
+fe\access\buyer.py                     56      0      2      0   100%
+fe\access\new_buyer.py                  8      0      0      0   100%
+fe\access\new_seller.py                 8      0      0      0   100%
+fe\access\seller.py                    39      0      0      0   100%
+fe\bench\__init__.py                    0      0      0      0   100%
+fe\bench\run.py                        13     13      6      0     0%
+fe\bench\session.py                    47     47     12      0     0%
+fe\bench\workload.py                  125    125     20      0     0%
+fe\conf.py                             11      0      0      0   100%
+fe\conftest.py                         19      0      0      0   100%
+fe\test\gen_book_data.py               49      1     16      1    97%
+fe\test\test_add_book.py               37      0     10      0   100%
+fe\test\test_add_funds.py              23      0      0      0   100%
+fe\test\test_add_stock_level.py        40      0     10      0   100%
+fe\test\test_cancel_order.py           63      1      8      1    97%
+fe\test\test_create_store.py           20      0      0      0   100%
+fe\test\test_get_history_order.py      51      1      8      1    97%
+fe\test\test_login.py                  28      0      0      0   100%
+fe\test\test_new_order.py              40      0      0      0   100%
+fe\test\test_password.py               33      0      0      0   100%
+fe\test\test_payment.py                60      1      4      1    97%
+fe\test\test_register.py               31      0      0      0   100%
+fe\test\test_search_book.py            85      6      6      2    91%
+fe\test\test_send_order.py             89      1      8      1    98%
+---------------------------------------------------------------------
+TOTAL                                1877    341    282     39    80%
+Wrote HTML report to htmlcov\index.html
+
+liwanting@LWT MINGW64 /c/school/pythonprojects/bookstore_sql/project1/bookstore (master)
+$
+
+```
+可见项目bookstore中的所有功能均已全部实现:-)
+
+但是test_bench测试如果和它们放在一起没办法通过，在测试完tesr_bench后面的内容均无法测试了不知道为啥，但是test_bench自己可以通过，我找了很久但是没来得及找到原因TT
+
+然后发现把test_bench放到最后就可以一口气过掉，但是会有warning：
+```angular2html
+liwanting@LWT MINGW64 /c/school/pythonprojects/bookstore_sql/project1/bookstore (master)
+$ bash script/test.sh
+============================= test session starts =============================
+platform win32 -- Python 3.11.5, pytest-8.3.3, pluggy-1.5.0 -- C:\school\python\python.exe
+cachedir: .pytest_cache
+rootdir: C:\school\pythonprojects\bookstore_sql\project1\bookstore
+collecting ... frontend begin test
+ * Serving Flask app 'be.serve' (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+2024-12-27 00:14:35,863 [Thread-1 (ru] [INFO ]   * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 collected 55 items
 
 fe/test/test_add_book.py::TestAddBook::test_ok PASSED                    [  1%]
@@ -1219,92 +1355,132 @@ fe/test/test_add_stock_level.py::TestAddStockLevel::test_error_user_id PASSED [ 
 fe/test/test_add_stock_level.py::TestAddStockLevel::test_error_store_id PASSED [ 16%]
 fe/test/test_add_stock_level.py::TestAddStockLevel::test_error_book_id PASSED [ 18%]
 fe/test/test_add_stock_level.py::TestAddStockLevel::test_ok PASSED       [ 20%]
-fe/test/test_bench.py::test_bench PASSED                                 [ 21%]
-fe/test/test_cancel_order.py::TestCancelOrder::test_ok PASSED            [ 23%]
-fe/test/test_cancel_order.py::TestCancelOrder::test_non_exist_order_id PASSED [ 25%]
-fe/test/test_cancel_order.py::TestCancelOrder::test_repeat_cancel PASSED [ 27%]
-fe/test/test_cancel_order.py::TestCancelOrder::test_cancel_paid_order PASSED [ 29%]
-fe/test/test_cancel_order.py::TestCancelOrder::test_cancel_long_time_order PASSED [ 30%]
-fe/test/test_create_store.py::TestCreateStore::test_ok PASSED            [ 32%]
-fe/test/test_create_store.py::TestCreateStore::test_error_exist_store_id PASSED [ 34%]
-fe/test/test_get_history_order.py::TestGetOHistoryaoarder::test_ok PASSED [ 36%]
-fe/test/test_get_history_order.py::TestGetOHistoryaoarder::test_non_exist_user_id PASSED [ 38%]
-fe/test/test_login.py::TestLogin::test_ok PASSED                         [ 40%]
-fe/test/test_login.py::TestLogin::test_error_user_id PASSED              [ 41%]
-fe/test/test_login.py::TestLogin::test_error_password PASSED             [ 43%]
-fe/test/test_new_order.py::TestNewOrder::test_non_exist_book_id PASSED   [ 45%]
-fe/test/test_new_order.py::TestNewOrder::test_low_stock_level PASSED     [ 47%]
-fe/test/test_new_order.py::TestNewOrder::test_ok PASSED                  [ 49%]
-fe/test/test_new_order.py::TestNewOrder::test_non_exist_user_id PASSED   [ 50%]
-fe/test/test_new_order.py::TestNewOrder::test_non_exist_store_id PASSED  [ 52%]
-fe/test/test_password.py::TestPassword::test_ok PASSED                   [ 54%]
-fe/test/test_password.py::TestPassword::test_error_password PASSED       [ 56%]
-fe/test/test_password.py::TestPassword::test_error_user_id PASSED        [ 58%]
-fe/test/test_payment.py::TestPayment::test_ok PASSED                     [ 60%]
-fe/test/test_payment.py::TestPayment::test_authorization_error PASSED    [ 61%]
-fe/test/test_payment.py::TestPayment::test_not_suff_funds PASSED         [ 63%]
-fe/test/test_payment.py::TestPayment::test_repeat_pay PASSED             [ 65%]
-fe/test/test_register.py::TestRegister::test_register_ok PASSED          [ 67%]
-fe/test/test_register.py::TestRegister::test_unregister_ok PASSED        [ 69%]
-fe/test/test_register.py::TestRegister::test_unregister_error_authorization PASSED [ 70%]
-fe/test/test_register.py::TestRegister::test_register_error_exist_user_id PASSED [ 72%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_ok PASSED            [ 21%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_non_exist_order_id PASSED [ 23%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_repeat_cancel PASSED [ 25%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_cancel_paid_order PASSED [ 27%]
+fe/test/test_cancel_order.py::TestCancelOrder::test_cancel_long_time_order PASSED [ 29%]
+fe/test/test_create_store.py::TestCreateStore::test_ok PASSED            [ 30%]
+fe/test/test_create_store.py::TestCreateStore::test_error_exist_store_id PASSED [ 32%]
+fe/test/test_get_history_order.py::TestGetOHistoryaoarder::test_ok PASSED [ 34%]
+fe/test/test_get_history_order.py::TestGetOHistoryaoarder::test_non_exist_user_id PASSED [ 36%]
+fe/test/test_login.py::TestLogin::test_ok PASSED                         [ 38%]
+fe/test/test_login.py::TestLogin::test_error_user_id PASSED              [ 40%]
+fe/test/test_login.py::TestLogin::test_error_password PASSED             [ 41%]
+fe/test/test_new_order.py::TestNewOrder::test_non_exist_book_id PASSED   [ 43%]
+fe/test/test_new_order.py::TestNewOrder::test_low_stock_level PASSED     [ 45%]
+fe/test/test_new_order.py::TestNewOrder::test_ok PASSED                  [ 47%]
+fe/test/test_new_order.py::TestNewOrder::test_non_exist_user_id PASSED   [ 49%]
+fe/test/test_new_order.py::TestNewOrder::test_non_exist_store_id PASSED  [ 50%]
+fe/test/test_password.py::TestPassword::test_ok PASSED                   [ 52%]
+fe/test/test_password.py::TestPassword::test_error_password PASSED       [ 54%]
+fe/test/test_password.py::TestPassword::test_error_user_id PASSED        [ 56%]
+fe/test/test_payment.py::TestPayment::test_ok PASSED                     [ 58%]
+fe/test/test_payment.py::TestPayment::test_authorization_error PASSED    [ 60%]
+fe/test/test_payment.py::TestPayment::test_not_suff_funds PASSED         [ 61%]
+fe/test/test_payment.py::TestPayment::test_repeat_pay PASSED             [ 63%]
+fe/test/test_register.py::TestRegister::test_register_ok PASSED          [ 65%]
+fe/test/test_register.py::TestRegister::test_unregister_ok PASSED        [ 67%]
+fe/test/test_register.py::TestRegister::test_unregister_error_authorization PASSED [ 69%]
+fe/test/test_register.py::TestRegister::test_register_error_exist_user_id PASSED [ 70%]
+fe/test/test_search_book.py::TestSearchBook::test_search_in_store PASSED [ 72%]
 fe/test/test_search_book.py::TestSearchBook::test_search_global PASSED   [ 74%]
 fe/test/test_search_book.py::TestSearchBook::test_search_global_not_exists PASSED [ 76%]
-fe/test/test_search_book.py::TestSearchBook::test_search_in_store PASSED [ 78%]
-fe/test/test_search_book.py::TestSearchBook::test_search_not_exist_store_id PASSED [ 80%]
-fe/test/test_search_book.py::TestSearchBook::test_search_in_store_not_exist PASSED [ 81%]
-fe/test/test_send_order.py::TestSendReceive::test_send_ok PASSED         [ 83%]
-fe/test/test_send_order.py::TestSendReceive::test_receive_ok PASSED      [ 85%]
-fe/test/test_send_order.py::TestSendReceive::test_error_store_id PASSED  [ 87%]
-fe/test/test_send_order.py::TestSendReceive::test_error_order_id PASSED  [ 89%]
-fe/test/test_send_order.py::TestSendReceive::test_error_seller_id PASSED [ 90%]
-fe/test/test_send_order.py::TestSendReceive::test_error_buyer_id PASSED  [ 92%]
-fe/test/test_send_order.py::TestSendReceive::test_send_not_pay PASSED    [ 94%]
-fe/test/test_send_order.py::TestSendReceive::test_receive_not_send PASSED [ 96%]
-fe/test/test_send_order.py::TestSendReceive::test_repeat_send PASSED     [ 98%]
-fe/test/test_send_order.py::TestSendReceive::test_repeat_receive PASSED  [100%]C:\school\pythonprojects\data_base\project1\bookstore_mongoDB\be\serve.py:26: UserWarning: The 'environ['werkzeug.server.shutdown']' function is deprecated and will be removed in Werkzeug 2.1.
+fe/test/test_search_book.py::TestSearchBook::test_search_not_exist_store_id PASSED [ 78%]
+fe/test/test_search_book.py::TestSearchBook::test_search_not_in_store SKIPPED [ 80%]
+fe/test/test_send_order.py::TestSendReceive::test_send_ok PASSED         [ 81%]
+fe/test/test_send_order.py::TestSendReceive::test_receive_ok PASSED      [ 83%]
+fe/test/test_send_order.py::TestSendReceive::test_error_store_id PASSED  [ 85%]
+fe/test/test_send_order.py::TestSendReceive::test_error_order_id PASSED  [ 87%]
+fe/test/test_send_order.py::TestSendReceive::test_error_seller_id PASSED [ 89%]
+fe/test/test_send_order.py::TestSendReceive::test_error_buyer_id PASSED  [ 90%]
+fe/test/test_send_order.py::TestSendReceive::test_send_not_pay PASSED    [ 92%]
+fe/test/test_send_order.py::TestSendReceive::test_receive_not_send PASSED [ 94%]
+fe/test/test_send_order.py::TestSendReceive::test_repeat_send PASSED     [ 96%]
+fe/test/test_send_order.py::TestSendReceive::test_repeat_receive PASSED  [ 98%]
+fe/test/test_z_bench.py::test_bench PASSED                               [100%]C:\school\pythonprojects\bookstore_sql\project1\bookstore\be\serve.py:18: UserWarning: The 'environ['werkzeug.server.shutdown']' function is deprecated and will be removed in Werkzeug 2.1.
   func()
-2024-10-31 12:38:14,590 [Thread-5175 ] [INFO ]  127.0.0.1 - - [31/Oct/2024 12:38:14] "GET /shutdown HTTP/1.1" 200 -
+2024-12-27 00:19:00,293 [Thread-2375 ] [INFO ]  127.0.0.1 - - [27/Dec/2024 00:19:00] "GET /shutdown HTTP/1.1" 200 -
 
 
-======================= 55 passed in 386.62s (0:06:26) ========================
+============================== warnings summary ===============================
+fe/test/test_z_bench.py::test_bench
+  C:\school\python\Lib\site-packages\_pytest\threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-1277
+
+  Traceback (most recent call last):
+    File "C:\school\python\Lib\site-packages\requests\models.py", line 974, in json
+      return complexjson.loads(self.text, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\school\python\Lib\site-packages\simplejson\__init__.py", line 514, in loads
+      return _default_decoder.decode(s)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\school\python\Lib\site-packages\simplejson\decoder.py", line 386, in decode
+      obj, end = self.raw_decode(s)
+                 ^^^^^^^^^^^^^^^^^^
+    File "C:\school\python\Lib\site-packages\simplejson\decoder.py", line 416, in raw_decode
+      return self.scan_once(s, idx=_w(s, idx).end())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  simplejson.errors.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+  During handling of the above exception, another exception occurred:
+
+  Traceback (most recent call last):
+    File "C:\school\python\Lib\threading.py", line 1038, in _bootstrap_inner
+      self.run()
+    File "C:\school\pythonprojects\bookstore_sql\project1\bookstore\fe\bench\session.py", line 29, in run
+      self.run_gut()
+    File "C:\school\pythonprojects\bookstore_sql\project1\bookstore\fe\bench\session.py", line 34, in run_gut
+      ok, order_id = new_order.run()
+                     ^^^^^^^^^^^^^^^
+    File "C:\school\pythonprojects\bookstore_sql\project1\bookstore\fe\bench\workload.py", line 19, in run
+      code, order_id = self.buyer.new_order(self.store_id, self.book_id_and_count)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "C:\school\pythonprojects\bookstore_sql\project1\bookstore\fe\access\buyer.py", line 53, in new_order
+      response_json = r.json()
+                      ^^^^^^^^
+    File "C:\school\python\Lib\site-packages\requests\models.py", line 978, in json
+      raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+  requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============ 54 passed, 1 skipped, 1 warning in 265.37s (0:04:25) =============
 frontend end test
 No data to combine
 Name                                Stmts   Miss Branch BrPart  Cover
 ---------------------------------------------------------------------
 be\__init__.py                          0      0      0      0   100%
 be\app.py                               3      3      2      0     0%
-be\model\__init__.py                    0      0      0      0   100%
-be\model\buyer.py                     180     43     70     18    76%
-be\model\db_conn.py                    19      0      6      0   100%
-be\model\error.py                      28      1      0      0    96%
-be\model\seller.py                     66     17     24      1    80%
-be\model\store.py                      20      0      0      0   100%
-be\model\user.py                      135     28     42      5    81%
+be\model\buyer.py                     204     40     62     14    80%
+be\model\db_conn.py                    21      0      0      0   100%
+be\model\error.py                      28      2      0      0    93%
+be\model\seller.py                    108     27     38      6    76%
+be\model\store.py                      48      5      0      0    90%
+be\model\user.py                      205     52     52      9    76%
 be\serve.py                            36      1      2      1    95%
 be\view\__init__.py                     0      0      0      0   100%
-be\view\auth.py                        51      0      0      0   100%
+be\view\auth.py                        51      7      0      0    86%
 be\view\buyer.py                       54      0      2      0   100%
 be\view\seller.py                      39      0      0      0   100%
 fe\__init__.py                          0      0      0      0   100%
 fe\access\__init__.py                   0      0      0      0   100%
-fe\access\auth.py                      36      0      0      0   100%
-fe\access\book.py                      66      0     10      1    99%
+fe\access\auth.py                      36      4      0      0    89%
+fe\access\book.py                      69      0     14      2    98%
 fe\access\buyer.py                     56      0      2      0   100%
 fe\access\new_buyer.py                  8      0      0      0   100%
 fe\access\new_seller.py                 8      0      0      0   100%
 fe\access\seller.py                    39      0      0      0   100%
 fe\bench\__init__.py                    0      0      0      0   100%
 fe\bench\run.py                        13      0      6      0   100%
-fe\bench\session.py                    47      0     12      1    98%
-fe\bench\workload.py                  125      1     20      2    98%
+fe\bench\session.py                    47     10     12      3    71%
+fe\bench\workload.py                  125     20     20      2    83%
 fe\conf.py                             11      0      0      0   100%
-fe\conftest.py                         20      0      0      0   100%
+fe\conftest.py                         19      0      0      0   100%
 fe\test\gen_book_data.py               49      0     16      0   100%
 fe\test\test_add_book.py               37      0     10      0   100%
 fe\test\test_add_funds.py              23      0      0      0   100%
 fe\test\test_add_stock_level.py        40      0     10      0   100%
-fe\test\test_bench.py                   6      2      0      0    67%
 fe\test\test_cancel_order.py           63      1      8      1    97%
 fe\test\test_create_store.py           20      0      0      0   100%
 fe\test\test_get_history_order.py      51      1      8      1    97%
@@ -1313,39 +1489,25 @@ fe\test\test_new_order.py              40      0      0      0   100%
 fe\test\test_password.py               33      0      0      0   100%
 fe\test\test_payment.py                60      1      4      1    97%
 fe\test\test_register.py               31      0      0      0   100%
-fe\test\test_search_book.py            99      0      8      1    99%
+fe\test\test_search_book.py            85      6      6      2    91%
 fe\test\test_send_order.py             89      1      8      1    98%
+fe\test\test_z_bench.py                 6      2      0      0    67%
 ---------------------------------------------------------------------
-TOTAL                                1729    100    270     34    93%
+TOTAL                                1883    183    282     43    89%
 Wrote HTML report to htmlcov\index.html
 
-liwanting@LWT MINGW64 /c/school/pythonprojects/data_base/project1/bookstore_mongoDB (main)
-$
+liwanting@LWT MINGW64 /c/school/pythonprojects/bookstore_sql/project1/bookstore (master)
+
 ```
-可见所有测试均已通过，项目bookstore_mongodb中的所有功能均已全部实现:-)
+现在可以看见我的测试都通过了，要求均已经实现，每个功能都写了测试并且测试通过。
+有skip是因为不满足那个测试的要求，此测试要求有在books库中但现在别的书店里没有的书，不符合要求的情况下这个测试会skip，因此有一个skip。
+
 ## 项目亮点
 ### 亮点1：使用git进行版本管理
 GitHub 使用 Git 作为版本控制系统，能够跟踪代码的历史变化，便于查看和恢复以前的版本，也便于多人协作工作。
 #### 代码仓库：
 https://github.com/liququ2023/datadase_project1
-### 亮点2：使用索引来提高查询效率
-项目中构建了以下索引：
-- 索引1：books文档集合中的book_id键值
-```
- self.db.books.create_index([("id",1)])
-```
-- 索引2：user文档集合中的user_id键值
-```
-self.database["user"].create_index([("user_id", 1)])
-```
-- 索引3：store文档集合中的store_id键值
-```
-self.database["store"].create_index([("store_id", 1)])
-```
-- 索引4：user_store文档集合中的[user_id, store_id]键值
-```
-self.database["user_store"].create_index([("user_id", 1), ("store_id", 1)])
-```
-选择以上字段作为索引是因为这些值具有高选择性，能够区分多个记录，是唯一字段；这些字段频繁被用于查询，且不会频繁被更改。这些字段作为索引可以提高查询效率。
+### 亮点2：测试与覆盖率
+此处看见代码覆盖率不高是因为bench相关部分没有运行，其他部分的覆盖率还不错。
 ## 项目总结
-本项目是我们第一次体验构建一个包含这么多功能的后端架构，且包含前端的测试，是一个功能相对完善的项目。在深入理解数据库在项目中与前后端的交互过程的同时，也更多地了解了前后端应用架构的知识。
+本项目是我们再一次体验构建一个包含这么多功能的后端架构，且包含前端的测试，是一个功能相对完善的项目。在深入理解数据库在项目中与前后端的交互过程的同时，也更多地了解了前后端应用架构的知识，也比较了不同的数据库在应用上的区别。
