@@ -33,9 +33,13 @@ bookstore_postgresql
         |-- ....
   |-- ....
 ```
-## 三，项目文档schema设计
+## 三，关系数据库设计：关系型 schema
 ### 前60%功能的文档结构设计：
-由于此项目是要把原来基于mongodb的功能迁移到postgresql上面，且项目要求测试文件保持不变，因此，我们并不改变原来的数据存储结构，我们迁移后的每个postgresql的table中存放一个mongodb文档集合的内容，因此前60%功能的文档schema如下：
+#### ER图如下：
+![ER](ER.PNG)
+由于此项目是要把原来基于mongodb的功能迁移到postgresql上面，且项目要求测试文件保持不变，因此，我们并不改变原来的数据存储结构，我们迁移后的每个postgresql的table中存放一个mongodb文档集合的内容，这是因为本来我们的mongodb就是基于sqlite迁移过来的，本来就是适合存放在关系模型中，同时这样的设计也更加便于我们编写业务逻辑代码。
+同时我此处将BLOB数据转变为二进制数据，依旧存放在我们的postgresql数据库中
+因此前60%功能的文档schema如下：
 #### table1:books
 - id TEXT
 - title TEXT
@@ -53,7 +57,7 @@ bookstore_postgresql
 - book_intro TEXT
 - content TEXT
 - tags TEXT
-- picture BLOB
+- picture BYTEA
 
 #### table2:user
 - user_id TEXT
@@ -69,6 +73,7 @@ bookstore_postgresql
 #### table4:store
 - store_id TEXT
 - book_id TEXT
+- book_info TEXT
 - stock_level INT
 
 #### table5:new_order
@@ -88,6 +93,7 @@ bookstore_postgresql
 - order_id TEXT
 - user_id TEXT
 - store_id TEXT
+- order_status TEXT
 - ##### 包含订单状态
 
 #### table8:history_order_detail
@@ -124,11 +130,11 @@ bookstore_postgresql
 
 - seller.py文件实现和卖家有关的后端逻辑代码，包括实现书籍的添加，库存的更新和商店的创造，本项目新增了发货功能
 
-- store.py用于管理与 MongoDB 数据库的连接以及集合的初始化，此处没有新功能的加入
+- store.py用于管理与 postgresql 数据库的连接以及集合的初始化，此处没有新功能的加入
 
 - user.py文件实现和用户有关操作的逻辑代码，包括注册，登录，登出，注销账号，修改密码功能，本项目新增搜索图书功能
 
-*在该目录下，在每个部分中无论是否增加新功能，需要将原本基于sqlite的语句迁移到基于mongodb的语句。*
+*在该目录下，在每个部分中无论是否增加新功能，需要将原本基于mongodb的语句迁移到基于postgresql的语句。*
 #### view目录
 该目录下是后端接口的实现，分别是用户后端接口，买家后端接口和买家后端接口。此部分代码提供了 HTTP 路由，每个接口函数在接收到客户端请求后，解析参数并调用相对应的类的方法，这些方法定义在model目录中。
 
@@ -172,7 +178,7 @@ app.py 是项目的入口点，负责导入 server.py 中定义的 Flask 应用�
             
 - auth.py文件实现了用户请求的发起，包括登录，注册，修改密码，登出，注销账号的请求发起，在此项目中新增搜索书籍请求的生成。
 
-- book.py文件用于管理书籍信息，特别是与 MongoDB 数据库的交互。此处没有新增功能，但也因为有与数据库交互的内容，因此需要修改代码为基于mongodb的。
+- book.py文件用于管理书籍信息，特别是与数据库的交互。此处没有新增功能，但也因为有与数据库交互的内容，因此需要修改代码为基于postgresql的。
 
 - buyer.py文件实现买家请求的发起，包括创建新订单，支付订单，账户充值，在这个项目中新增获取历史订单，取消订单和确认收货功能。
 
@@ -182,7 +188,7 @@ app.py 是项目的入口点，负责导入 server.py 中定义的 Flask 应用�
 
 - seller.py文件实现卖家请求的发起，包括创建店铺，增加书籍，增加书籍库存，在这个项目中新增发货功能。
 
-*该目录下的文件除了book.py文件有基于sqlite的代码，需要进行代码迁移，其余代码均为前端请求发起文件，与数据库无关，只需要仿照上面的写法增加新功能即可。*
+*该目录下的文件除了book.py文件有基于mongodb的代码，需要进行代码迁移，其余代码均为前端请求发起文件，与数据库无关，只需要仿照上面的写法增加新功能即可。*
 
 #### bench
 *此部分用于效率测试，与基于的数据库无关不用修改*
@@ -193,13 +199,11 @@ data目录下是与数据爬取和迁移有关的代码，在这里我新增了�
             |-- book.db                 原sqlite数据
             |-- scraper.py              从豆瓣爬取的图书信息数据的代码
             |-- data_insert.py             数据迁移
-            |-- dbcount.py                 计算原books数量
 
 我新增的代码文件：
 
-- data_insert.py：用于将数据从book.db导出并插入到本地mongodb数据库 
+- data_insert.py：用于将数据从book.db导出并插入到本地postgresql数据库 
 
-- dbcount.py：用于确认所有书籍是否已经完全导出了
 #### test
 test目录下是项目测试内容
 
@@ -215,76 +219,178 @@ test目录下是项目测试内容
 #### conf.py和conftest.py文件:测试参数与初始化
 conf.py用于测试参数设置，conftest.py是pytest初始化配置，在测试开始时自动启动后端服务，并在测试结束时安全地关闭它。通过在 pytest_configure 中等待数据库初始化完成，可以确保测试的稳定性和一致性，避免因后端未准备好而导致的测试失败。
 
+#### 总结以上，由于是基于mongodb进行修改，因此其实前后端接口和测试代码都基本不需要修改（在我的实践中这部分只有和搜索有关的测试代码需要修改），主要修改集中在后端的model和前端的book.py，有涉及与数据库交互的步骤
+
 ## 项目准备工作
 ### 项目环境准备
 开始工作前我们需要：
 - 建造本地仓库便于使用git进行版本管理
 
-- 启动和连接本地mongod数据库，以便接受对于文档数据库的操作
+- 启动和连接本地postgresql数据库，以便接受对于文档数据库的操作
 
-- 下载MongoDB Compass，可视化文档数据库，便于功能实现
-### 数据迁移：从sqlite到mongodb
-由于本来的实现是基于sqlite数据库，在进行代码的迁移之前，我们要先将数据迁移到mongodb。
+- 下载pgAdmin4，可视化文档数据库，便于功能实现
+### 数据迁移：从sqlite到postgresql
+由于本来的实现是基于sqlite数据库，在进行代码的迁移之前，我们要先将数据迁移到postgresql。
 如上所述，我们用于数据迁移的代码是位于前端部分data文件夹内的data_insert.py。
-先定义好SQLite数据库路径，随后连接SQLite数据库，并查询所有数据信息，打印查询结果，获取列名，将数据转换为字典格式，并且计算记录数量，最后关闭连接：
-    
-    # 定义好sqlite数据库路径，准备连接并读取数据
-    sqlite_db_path = 'book.db'
-    print(f"Connecting to SQLite database at: {sqlite_db_path}")
 
-    # 连接到 SQLite 数据库
-    try:
+使用 sqlite3.connect 连接到 SQLite 数据库，创建游标对象 cursor。
+通过 cursor.execute("SELECT * FROM book") 执行查询，获取所有书籍数据。
+cursor.fetchall() 获取查询结果，将其存入 books。
+使用 cursor.description 获取列名，将查询结果转换为字典格式，以便后续操作。
+打印出前 5 本书的内容，以便检查。
+```angular2html
+# SQLite 数据库路径
+sqlite_db_path = 'book.db'
+print(f"Connecting to SQLite database at: {sqlite_db_path}")
+
+# PostgreSQL 数据库连接信息
+postgres_host = "localhost"
+postgres_db = "bookstore"
+postgres_user = "postgres"
+postgres_password = "Liwanting2003"
+
+
+# 连接到 SQLite 数据库
+try:
     conn = sqlite3.connect(sqlite_db_path)
     cursor = conn.cursor()
 
-    # 查询所有书籍信息
+    # 查询所有书籍信息，包括图片数据
     cursor.execute("SELECT * FROM book")
     books = cursor.fetchall()
 
     # 打印查询结果
-    print("Retrieved books:", books)
+    print(f"Retrieved {len(books)} books from SQLite")
 
     # 获取列名
     column_names = [description[0] for description in cursor.description]
 
     # 将数据转换为字典格式
     books_list = [dict(zip(column_names, book)) for book in books]
+    print(f"Books List: {books_list[:5]}")  # 打印前5本书以检查
 
-    # 计算记录数量
-    book_count = len(books_list)
-    print(f"Total number of books in the database: {book_count}")
-
-    except sqlite3.Error as e:
+except sqlite3.Error as e:
     print(f"SQLite error: {e}")
-    finally:
+finally:
     # 关闭 SQLite 连接
     if conn:
         conn.close()
+```
+使用 psycopg2.connect 连接到 PostgreSQL 数据库。
+创建游标 pg_cursor，并关闭自动提交模式，以便管理事务。
 
-此处我们已经完成了所有books的读取，接下来我们可以开始把内容插入到文档数据库：
-我们先连接到自己的mongodb，并且指定集合books：
+```
+# 连接到 PostgreSQL 数据库
+pg_conn = None
+pg_cursor = None
+try:
+    pg_conn = psycopg2.connect(
+        host=postgres_host,
+        dbname=postgres_db,
+        user=postgres_user,
+        password=postgres_password
+    )
+    pg_cursor = pg_conn.cursor()
 
-    mongo_client = MongoClient('mongodb://localhost:27017/')
-    mongo_db = mongo_client['bookstore']
-    mongo_collection = mongo_db['books']
+    # 开始事务
+    pg_conn.autocommit = False  # 关闭自动提交，显式管理事务
+```
+创建 PostgreSQL 表
+```
+    # 创建表 (如果表不存在)
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS books (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        author TEXT,
+        publisher TEXT,
+        original_title TEXT,
+        translator TEXT,
+        pub_year TEXT,
+        pages INTEGER,
+        price INTEGER,
+        currency_unit TEXT,
+        binding TEXT,
+        isbn TEXT,
+        author_intro TEXT,
+        book_intro TEXT,
+        content TEXT,
+        tags TEXT,
+        picture BYTEA  -- 用于存储图片的二进制数据
+    );
+    """
+    pg_cursor.execute(create_table_query)
+    pg_conn.commit()
+    print("Table created successfully.")
+```
+ 插入数据到 PostgreSQL
+```
+    # 插入数据到 PostgreSQL
+    if books_list:  # 检查book_list是否为空
+        for book in books_list:
+            try:
+                # 获取 SQLite 中的图片二进制数据
+                picture_data = book.get('picture')
+                # picture_data 是二进制数据，如果它是 None 或空，则跳过
+                if picture_data:
+                    print(f"Inserting book with ID: {book['id']}, Picture Data Length: {len(picture_data)}")
+                else:
+                    print(f"No picture data for book ID: {book['id']}")
 
-将数据插入到本地的mongodb数据库，插入前要先检查books_list是否为空：
+                # 插入数据
+                insert_query = sql.SQL("""
+                    INSERT INTO books (
+                        id, title, author, publisher, original_title, translator, pub_year,
+                        pages, price, currency_unit, binding, isbn, author_intro, book_intro,
+                        content, tags, picture
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO NOTHING  -- 如果有相同的 id，则跳过
+                """)
 
-    if books_list:
-    for book in books_list:
-        try:
-            mongo_collection.insert_one(book)
-            print(f"Inserted book with id: {book['id']}")
-        except errors.DuplicateKeyError:
-            print(f"Book with id: {book['id']} already exists. Skipping.")
+                pg_cursor.execute(insert_query, (
+                    book['id'],
+                    book['title'],
+                    book['author'],
+                    book['publisher'],
+                    book['original_title'],
+                    book['translator'],
+                    book['pub_year'],
+                    book['pages'],
+                    book['price'],
+                    book['currency_unit'],
+                    book['binding'],
+                    book['isbn'],
+                    book['author_intro'],
+                    book['book_intro'],
+                    book['content'],
+                    book['tags'],
+                    Binary(picture_data) if picture_data else None
+                ))
 
-完成读取后关闭 MongoDB 连接：
+                print(f"Inserted book with id: {book['id']}")
 
-    mongo_client.close()
+            except Exception as e:
+                print(f"Error inserting book with id {book['id']}: {e}")
+                print(f"Failed Book Data: {book}")
+                pg_conn.rollback()  # 如果插入失败，回滚本次操作
 
-在这里我没有对book_id建立索引，所有索引在后端代码中建立，因此此处运行时要注意只插入一次。
+    # 提交所有插入操作
+    pg_conn.commit()
+    print("Data migration completed successfully.")
 
-**同目录下的dbcount.py可以用于计算原来db文件中的book条目，可以用于检查是否已经将数据完全插入
+except psycopg2.Error as e:
+    print(f"PostgreSQL error: {e}")
+    pg_conn.rollback()  # 如果发生任何异常，回滚事务
+finally:
+    # 关闭 PostgreSQL 连接
+    if pg_cursor:
+        pg_cursor.close()
+    if pg_conn:
+        pg_conn.close()
+```
+
+
 ## 项目具体功能实现
 ### 项目功能实现流程
 在我们具体实现每个功能之前，在这里先阐释一下每个接口实现的细节。从前面板块的分析我们可以知道，测试文件通过前端fe/access路径下的文件来向后端发起请求，后端接口be/view路由，识别请求，并且调用后端逻辑代码be/model中对应的函数，来处理请求，与数据库交互，并且返回最终的结果，也返回状态码给前端。以上便是完整的功能实现的一个流程，我们对于每个功能基于此进行改动。
