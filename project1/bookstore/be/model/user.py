@@ -217,9 +217,10 @@ class User(db_conn.DBConn):
             return 530, "{}".format(str(e))
         return 200, "ok"
 
-    # 新增的 search_book 方法
     def search_book(self, title='', content='', tag='', store_id=''):
+        cursor = None
         try:
+            cursor = self.conn.cursor()  # 使用 conn 来创建游标
             query_parts = []  # 用于存储查询条件
             params = []  # 用于存储查询参数
 
@@ -234,28 +235,31 @@ class User(db_conn.DBConn):
                 query_parts.append("b.tags LIKE %s")
                 params.append(f"%{tag}%")
 
-            # 根据 store_id 查询指定商店的所有书籍 ID
+            # 如果有 store_id，查询该商店下的所有书籍 ID
             if store_id:
+                # 查询商店中的所有书籍 ID
                 store_query = """
                     SELECT book_id FROM store WHERE store_id = %s;
                 """
-                cursor = self.db.cursor()
                 cursor.execute(store_query, (store_id,))
                 store_result = cursor.fetchall()
 
                 if not store_result:
-                    return 528, f"Store with ID {store_id} does not exist."
+                    return 528, f"Store with ID {store_id} does not exist.", []  # 返回商店不存在
 
                 book_ids = [item[0] for item in store_result]  # 提取所有 book_id
 
-                if book_ids:  # 如果 book_ids 有数据
-                    query_parts.append("b.id IN (%s)" % ",".join(["%s"] * len(book_ids)))  # 用占位符代替实际值
-                    params.extend(book_ids)
+                if not book_ids:  # 如果商店中没有书籍
+                    return 528, f"No books found in store with ID {store_id}.", []  # 返回商店内没有书籍
+
+                # 构造 IN 查询条件
+                query_parts.append(f"b.id IN ({','.join(['%s'] * len(book_ids))})")
+                params.extend(book_ids)
 
             # 拼接最终的查询条件
             where_clause = " AND ".join(query_parts) if query_parts else "1=1"
 
-            # 执行查询
+            # 拼接最终的查询语句
             sql = f"""
                 SELECT b.id, b.title, b.content, b.tags 
                 FROM books b
@@ -263,14 +267,46 @@ class User(db_conn.DBConn):
             """
             cursor.execute(sql, tuple(params))  # 使用 tuple 将所有参数传递给 execute
             results = cursor.fetchall()
-            cursor.close()
+
+            # 如果没有找到符合条件的书籍
+            if not results:
+                return 528, "No books found matching the criteria.", []
+
+            # 如果没有指定 store_id，返回找到的书籍（即不管它是否在商店中）
+            if not store_id:
+                return 200, "ok", results
+
+            # 如果指定了 store_id，检查每本书是否属于该商店
+            for book in results:
+                book_id = book[0]  # 获取书籍的 ID
+                cursor.execute("""
+                    SELECT 1 FROM store WHERE book_id = %s AND store_id = %s
+                """, (book_id, store_id))
+                store_check = cursor.fetchone()
+                if not store_check:
+                    return 528, f"Book '{book[1]}' not found in store with ID {store_id}.", []
+
+            # 如果书籍都属于指定的商店
+            return 200, "ok", results
 
         except psycopg2.Error as e:
-            return 528, str(e)
-        except Exception as e:
-            return 530, f"Unexpected error: {str(e)}"
+            logging.error(f"Database error occurred: {e.pgcode}, {e.pgerror}")  # 输出具体错误
+            return 528, f"Database error occurred: {e.pgcode}, {e.pgerror}", []
 
-        if not results:
-            return 529, "No matching books found."
-        else:
-            return 200, "ok", results
+        except Exception as e:
+            logging.error(f"Unexpected error occurred: {str(e)}")  # 输出具体错误
+            return 530, f"Unexpected error occurred: {str(e)}", []
+
+        finally:
+            if cursor:
+                cursor.close()  # 确保游标总是被关闭
+
+
+
+
+
+
+
+
+
+
